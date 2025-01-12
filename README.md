@@ -46,6 +46,7 @@ Each case study includes:
 
 ## 🛠 Technologies Used
 
-- **SQL Server** 
+- **SQL Server**
+- **MY SQL** 
 
 ---
