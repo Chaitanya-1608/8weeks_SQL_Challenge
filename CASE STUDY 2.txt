@@ -1,0 +1,402 @@
+CREATE SCHEMA pizza_runner;
+
+CREATE TABLE pizza_runner.runners (
+  runner_id INT,
+  registration_date DATE
+);
+INSERT INTO pizza_runner.runners (runner_id, registration_date)
+VALUES
+  (1, '2021-01-01'),
+  (2, '2021-01-03'),
+  (3, '2021-01-08'),
+  (4, '2021-01-15');
+
+-- Drop and create the customer_orders table
+IF OBJECT_ID('pizza_runner.customer_orders', 'U') IS NOT NULL DROP TABLE pizza_runner.customer_orders;
+CREATE TABLE pizza_runner.customer_orders (
+  order_id INT,
+  customer_id INT,
+  pizza_id INT,
+  exclusions NVARCHAR(4),
+  extras NVARCHAR(4),
+  order_time DATETIME
+);
+INSERT INTO pizza_runner.customer_orders (order_id, customer_id, pizza_id, exclusions, extras, order_time)
+VALUES
+  (1, 101, 1, '', '', '2020-01-01 18:05:02'),
+  (2, 101, 1, '', '', '2020-01-01 19:00:52'),
+  (3, 102, 1, '', '', '2020-01-02 23:51:23'),
+  (3, 102, 2, '', NULL, '2020-01-02 23:51:23'),
+  (4, 103, 1, '4', '', '2020-01-04 13:23:46'),
+  (4, 103, 1, '4', '', '2020-01-04 13:23:46'),
+  (4, 103, 2, '4', '', '2020-01-04 13:23:46'),
+  (5, 104, 1, 'null', '1', '2020-01-08 21:00:29'),
+  (6, 101, 2, 'null', 'null', '2020-01-08 21:03:13'),
+  (7, 105, 2, 'null', '1', '2020-01-08 21:20:29'),
+  (8, 102, 1, 'null', 'null', '2020-01-09 23:54:33'),
+  (9, 103, 1, '4', '1, 5', '2020-01-10 11:22:59'),
+  (10, 104, 1, 'null', 'null', '2020-01-11 18:34:49'),
+  (10, 104, 1, '2, 6', '1, 4', '2020-01-11 18:34:49');
+
+-- Drop and create the runner_orders table
+IF OBJECT_ID('pizza_runner.runner_orders', 'U') IS NOT NULL DROP TABLE pizza_runner.runner_orders;
+CREATE TABLE pizza_runner.runner_orders (
+  order_id INT,
+  runner_id INT,
+  pickup_time NVARCHAR(19),
+  distance NVARCHAR(7),
+  duration NVARCHAR(10),
+  cancellation NVARCHAR(23)
+);
+INSERT INTO pizza_runner.runner_orders (order_id, runner_id, pickup_time, distance, duration, cancellation)
+VALUES
+  (1, 1, '2020-01-01 18:15:34', '20km', '32 minutes', ''),
+  (2, 1, '2020-01-01 19:10:54', '20km', '27 minutes', ''),
+  (3, 1, '2020-01-03 00:12:37', '13.4km', '20 mins', NULL),
+  (4, 2, '2020-01-04 13:53:03', '23.4', '40', NULL),
+  (5, 3, '2020-01-08 21:10:57', '10', '15', NULL),
+  (6, 3, 'null', 'null', 'null', 'Restaurant Cancellation'),
+  (7, 2, '2020-01-08 21:30:45', '25km', '25mins', 'null'),
+  (8, 2, '2020-01-10 00:15:02', '23.4 km', '15 minute', 'null'),
+  (9, 2, 'null', 'null', 'null', 'Customer Cancellation'),
+  (10, 1, '2020-01-11 18:50:20', '10km', '10minutes', 'null');
+
+-- Drop and create the pizza_names table
+IF OBJECT_ID('pizza_runner.pizza_names', 'U') IS NOT NULL DROP TABLE pizza_runner.pizza_names;
+CREATE TABLE pizza_runner.pizza_names (
+  pizza_id INT,
+  pizza_name NVARCHAR(MAX)
+);
+INSERT INTO pizza_runner.pizza_names (pizza_id, pizza_name)
+VALUES
+  (1, 'Meatlovers'),
+  (2, 'Vegetarian');
+
+-- Drop and create the pizza_recipes table
+IF OBJECT_ID('pizza_runner.pizza_recipes', 'U') IS NOT NULL DROP TABLE pizza_runner.pizza_recipes;
+CREATE TABLE pizza_runner.pizza_recipes (
+  pizza_id INT,
+  toppings NVARCHAR(MAX)
+);
+INSERT INTO pizza_runner.pizza_recipes (pizza_id, toppings)
+VALUES
+  (1, '1, 2, 3, 4, 5, 6, 8, 10'),
+  (2, '4, 6, 7, 9, 11, 12');
+
+-- Drop and create the pizza_toppings table
+IF OBJECT_ID('pizza_runner.pizza_toppings', 'U') IS NOT NULL DROP TABLE pizza_runner.pizza_toppings;
+CREATE TABLE pizza_runner.pizza_toppings (
+  topping_id INT,
+  topping_name NVARCHAR(MAX)
+);
+INSERT INTO pizza_runner.pizza_toppings (topping_id, topping_name)
+VALUES
+  (1, 'Bacon'),
+  (2, 'BBQ Sauce'),
+  (3, 'Beef'),
+  (4, 'Cheese'),
+  (5, 'Chicken'),
+  (6, 'Mushrooms'),
+  (7, 'Onions'),
+  (8, 'Pepperoni'),
+  (9, 'Peppers'),
+  (10, 'Salami'),
+  (11, 'Tomatoes'),
+  (12, 'Tomato Sauce');
+
+-- Cleaning customer_orders table
+
+--Replacing "null" as a string to NULL value
+
+UPDATE pizza_runner.customer_orders
+SET exclusions = NULL
+WHERE exclusions = 'null'
+
+UPDATE pizza_runner.customer_orders
+SET extras = NULL
+WHERE extras = 'null'
+
+--Removing duplicate
+WITH CTE AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY order_id, customer_id, pizza_id, order_time ORDER BY order_id) AS row_num
+  FROM pizza_runner.customer_orders
+)
+DELETE FROM pizza_runner.customer_orders
+WHERE order_id IN (
+  SELECT order_id FROM CTE WHERE row_num > 1
+)
+--Creating a view wherein the exclusions and extras have separate rows for each string
+
+CREATE VIEW customer_orders_views AS
+SELECT 
+    co.order_id,
+    co.customer_id,
+    co.pizza_id,
+    TRIM(ex.VALUE) AS exclusion,
+    TRIM(exr.VALUE) AS extra,
+    co.order_time
+FROM pizza_runner.customer_orders co
+OUTER APPLY STRING_SPLIT(co.exclusions, ',') ex
+OUTER APPLY STRING_SPLIT(co.extras, ',') exr
+
+SELECT * FROM customer_orders_views
+
+--Cleaning runners table
+
+SELECT * FROM pizza_runner.runner_orders
+
+UPDATE pizza_runner.runner_orders
+SET pickup_time = NULL
+WHERE pickup_time = 'null'
+
+UPDATE pizza_runner.runner_orders
+SET distance = NULL
+WHERE distance = 'null'
+
+UPDATE pizza_runner.runner_orders
+SET duration= NULL
+WHERE duration='null'
+
+UPDATE pizza_runner.runner_orders
+SET cancellation=NULL
+WHERE cancellation = 'null'
+
+ALTER TABLE pizza_runner.runner_orders
+ALTER COLUMN pickup_time DATETIME
+
+EXEC sp_help 'pizza_runner.runner_orders'
+
+--Keeping only numeric data in distance and duration
+
+UPDATE pizza_runner.runner_orders
+SET distance = NULLIF(TRANSLATE(distance, 'km ', '   '), '');
+UPDATE pizza_runner.runner_orders
+SET distance = TRIM(distance)
+
+UPDATE pizza_runner.runner_orders
+SET duration= NULLIF(TRANSLATE(duration, 'minutes ','        '),'')
+UPDATE pizza_runner.runner_orders
+SET duration = TRIM(duration)
+
+--Upating pizza_recipies table
+drop view pizza_recipe_view
+CREATE VIEW pizza_recipe_view AS
+SELECT 
+    pizza_id, 
+	TRIM(VALUE)AS toppings
+FROM pizza_runner.pizza_recipes
+CROSS APPLY STRING_SPLIT(toppings, ',');
+
+SELECT * FROM pizza_recipe_view
+
+--A. Pizza Metrics  
+
+--How many pizzas were ordered?
+
+SELECT SUM(pizza_id) AS Total_pizza_ordered
+FROM customer_orders_views
+
+--How many unique customer orders were made?
+SELECT COUNT(DISTINCT customer_id) AS unique_customer_orders
+FROM customer_orders_views
+
+--How many successful orders were delivered by each runner?
+SELECT runner_id, count(order_id) AS successfull_orders
+FROM pizza_runner.runner_orders
+WHERE cancellation IS NULL
+GROUP BY runner_id
+
+--How many of each type of pizza was delivered?
+SELECT pizza_id, COUNT(order_id) AS total_order
+FROM customer_orders_views
+GROUP BY pizza_id
+
+--How many Vegetarian and Meatlovers were ordered by each customer?
+SELECT 
+    customer_id,
+    COUNT(CASE WHEN pizza_id = 1 THEN 1 END) AS Meatlovers,
+    COUNT(CASE WHEN pizza_id = 2 THEN 1 END) AS Vegetarian
+FROM 
+    customer_orders_views
+GROUP BY 
+    customer_id;
+
+--What was the maximum number of pizzas delivered in a single order?
+
+SELECT TOP 1 WITH TIES
+order_id, COUNT(pizza_id) AS Pizza_count
+FROM customer_orders_views
+GROUP BY order_id
+ORDER BY Pizza_count DESC 
+
+--For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
+WITH CTE AS(
+SELECT c.order_id
+FROM customer_orders_views c
+INNER JOIN pizza_runner.runner_orders r
+ON c.order_id = r.order_id
+WHERE r.cancellation IS NULL or r.cancellation = ''
+GROUP BY c.order_id
+)
+
+SELECT c1.customer_id,
+COUNT(CASE WHEN (c1.exclusion <> '' OR c1.extra <>'') THEN pizza_id END) AS at_least_1_change,
+COUNT(CASE WHEN (c1.exclusion = '' AND c1.extra = '') THEN pizza_id END) AS no_change
+FROM CTE
+INNER JOIN customer_orders_views c1 ON c1.order_id = CTE.order_id
+GROUP BY c1.customer_id
+ORDER BY c1.customer_id
+
+--How many pizzas were delivered that had both exclusions and extras?
+WITH CTE AS(
+SELECT c.order_id
+FROM customer_orders_views c
+INNER JOIN pizza_runner.runner_orders r
+ON c.order_id = r.order_id
+WHERE r.cancellation IS NULL or r.cancellation = ''
+GROUP BY c.order_id
+)
+
+SELECT c1.customer_id,
+COUNT(CASE WHEN (c1.exclusion <> '' AND c1.extra <>'') THEN pizza_id END) AS Pizaa_with_both
+FROM CTE
+INNER JOIN customer_orders_views c1 ON c1.order_id = CTE.order_id
+GROUP BY c1.customer_id
+HAVING COUNT(CASE WHEN (c1.exclusion <> '' AND c1.extra <>'') THEN pizza_id END) >0
+ORDER BY c1.customer_id
+
+
+--What was the total volume of pizzas ordered for each hour of the day?
+
+SELECT A.order_date, A.hour, COUNT(A.pizza_id) AS pizzas_ordered
+FROM(
+SELECT *, DATEPART(HOUR, order_time) AS hour, CONVERT(DATE, order_time) AS Order_Date
+FROM customer_orders_views
+) A
+GROUP BY A.order_date, A.hour
+ORDER BY Order_Date
+
+--What was the volume of orders for each day of the week?
+
+SELECT A.order_week, A.order_date, COUNT(A.pizza_id) AS pizzas_ordered
+FROM(
+SELECT *, DATEPART(WEEK, order_time) AS order_week, CONVERT(DATE, order_time) AS Order_Date
+FROM customer_orders_views
+) A
+GROUP BY A.order_week, A.order_date
+ORDER BY Order_Date
+
+--B. Runner and Customer Experience
+--How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+SELECT DATEPART(WEEK,pickup_time) AS week, COUNT(DISTINCT runner_id) AS runners_signedin
+FROM pizza_runner.runner_orders
+WHERE pickup_time IS NOT NULL
+GROUP BY DATEPART(WEEK,pickup_time)
+
+--What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+SELECT r.runner_id, AVG(DATEDIFF(minute,c.order_time,r.pickup_time)) AS average_time_taken
+FROM pizza_runner.runner_orders r
+INNER JOIN customer_orders_views c ON r.order_id = c.order_id
+WHERE r.pickup_time IS NOT NULL
+GROUP BY r.runner_id
+
+--Is there any relationship between the number of pizzas and how long the order takes to prepare?
+ 
+ SELECT c.order_id, COUNT(c.pizza_id) AS number_of_pizza, SUM(DATEDIFF(minute,c.order_time,r.pickup_time)) AS order_prep_time,
+ (SUM(DATEDIFF(minute,c.order_time,r.pickup_time)))/(COUNT(c.pizza_id)) AS averagetime_per_pizza
+ FROM customer_orders_views c
+ INNER JOIN pizza_runner.runner_orders r
+ ON c.order_id = r.order_id
+ WHERE r.pickup_time IS NOT NULL
+ GROUP BY c.order_id
+ ORDER BY c.order_id
+
+ --What was the average distance travelled for each customer?
+
+ SELECT c.customer_id, AVG(CAST(r.distance AS FLOAT)) AS avg_distance
+ FROM customer_orders_views c
+ INNER JOIN pizza_runner.runner_orders r
+ ON c.order_id = r.order_id
+ GROUP BY c.customer_id
+
+--What was the difference between the longest and shortest delivery times for all orders?
+SELECT (MAX(CAST(duration AS Float)) - MIN(CAST(duration AS Float))) AS difference
+FROM pizza_runner.runner_orders
+
+--What was the average speed for each runner for each delivery and do you notice any trend for these values?
+
+SELECT runner_id, order_id, (SUM(CAST(distance AS Float))/SUM(CAST(duration AS Float))) AS avg_speed
+FROM pizza_runner.runner_orders
+WHERE distance IS NOT NULL
+GROUP BY runner_id, order_id
+
+--C. Ingredient Optimisation
+--What are the standard ingredients for each pizza?
+SELECT A.toppings, pt.topping_name
+FROM (
+SELECT  toppings
+FROM pizza_recipe_view
+WHERE pizza_id =1 
+INTERSECT
+SELECT  toppings
+FROM pizza_recipe_view
+WHERE pizza_id =2
+)A
+INNER JOIN pizza_runner.pizza_toppings pt
+ON A.toppings = pt.topping_id
+
+--What was the most commonly added extra?
+
+SELECT TOP 1 extra, COUNT(extra) AS most_commonextra
+FROM customer_orders_views c
+WHERE extra IS NOT NULL OR extra <> ''
+GROUP BY extra
+ORDER BY COUNT(extra) DESC
+
+
+--What was the most common exclusion?
+SELECT TOP 1 exclusion, COUNT(exclusion) AS most_commonexclusion
+FROM customer_orders_views c
+WHERE exclusion IS NOT NULL OR exclusion <> ''
+GROUP BY exclusion
+ORDER BY COUNT(exclusion) DESC
+
+--Generate an order item for each record in the customers_orders table in the format of one of the following:
+--Meat Lovers
+--Meat Lovers - Exclude Beef
+--Meat Lovers - Extra Bacon
+--Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
+
+
+
+--Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
+--For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
+--What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+
+--D. Pricing and Ratings
+--If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
+
+
+--What if there was an additional $1 charge for any pizza extras?
+--Add cheese is $1 extra
+
+
+--The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
+
+
+--Using your newly generated table - can you join all of the information together to form a table which has the following information for successful deliveries?
+--customer_id
+--order_id
+--runner_id
+--rating
+--order_time
+--pickup_time
+--Time between order and pickup
+--Delivery duration
+--Average speed
+--Total number of pizzas
+
+
+
+
+--If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre traveled - how much money does Pizza Runner have left over after these deliveries?
