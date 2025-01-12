@@ -22,7 +22,6 @@ The **8 Weeks SQL Challenge** is a fantastic series of SQL case studies created 
 This repository contains my step-by-step solutions to all the case studies in the challenge. Each solution includes:
 - SQL queries
 - Explanations for the logic
-- Visualizations (where applicable)
 
 ---
 
@@ -36,42 +35,17 @@ Here are the case studies I have completed:
 2. **[Pizza Runner](case-study-2.md)**  
    Help a pizza delivery startup optimize its operations using data.
 
-3. **[Foodie-Fi](case-study-3.md)**  
-   Analyze subscription-based metrics for a food streaming platform.
-
-4. **[Data Bank](case-study-4.md)**  
-   Discover customer trends for a financial institution.
-
-5. **[Data Mart](case-study-5.md)**  
-   Investigate regional sales performance for a supermarket.
-
-6. **[Clique Bait](case-study-6.md)**  
-   Understand user engagement on a social media platform.
-
-7. **[Balanced Tree](case-study-7.md)**  
-   Optimize workflow and hiring metrics for a tech company.
-
-8. **[Fresh Segments](case-study-8.md)**  
-   Help a marketing team segment and target customers effectively.
 
 Each case study includes:
 - **Problem Statement**
 - **Schema Details**
 - **SQL Queries**
-- **Key Insights**
+
 
 ---
 
 ## 🛠 Technologies Used
 
-- **SQL Server** / **PostgreSQL** (adjust queries as needed)
-- **Tableau** / **Power BI** (for visualizations)
-- **Markdown** (for documentation)
+- **SQL Server** 
 
 ---
-
-## 🔍 How to Use This Repository
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/your-username/8-weeks-sql-challenge.git
